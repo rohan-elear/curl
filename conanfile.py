@@ -74,7 +74,7 @@ class CurllibConan(ConanFile):
     default_options ['with_ipv6'] = True
     default_options ['with_crypto_auth'] = True
     default_options ['with_rtsp'] = True
-    default_options ['with_threaded_resolver'] = True
+    default_options ['with_threaded_resolver'] = False
     default_options ['with_http'] = True
     default_options ['with_smb'] = True
     default_options ['with_dict'] = True
@@ -98,6 +98,10 @@ class CurllibConan(ConanFile):
 
     def config_options(self):
         args = ["--prefix=${PWD}"]
+        if tools.cross_building(self.settings):
+            if self.settings.os == "iOS":
+                self.options.with_threaded_resolver = True
+                args.append("--disable-verbose")
         args.append("--enable-ares") if self.options.with_ares else args.append("--disable-ares")
         args.append("--enable-http") if self.options.with_http else args.append("--disable-http")
         args.append("--enable-ftp") if self.options.with_ftp else args.append("--disable-ftp")
