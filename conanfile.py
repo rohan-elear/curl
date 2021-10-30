@@ -165,7 +165,7 @@ class CurllibConan(ConanFile):
             args.append("--with-ssl={!s}".format(self.deps_cpp_info["OpenSSL"].rootpath))
         args.append("--with-zlib={!s}".format(self.deps_cpp_info["zlib"].rootpath)) if self.options.with_zlib else args.append("--without-zlib")
         query = "%s-%s-%s" % (self.settings.os, self.settings.arch, self.settings.compiler)
-        if not ancestor:
+        if not query:
             autotools.configure(configure_dir= "..",args= args, use_default_install_dirs=True)
         else:
             autotools.configure(configure_dir= "..",args= args, use_default_install_dirs=True, host= query)
