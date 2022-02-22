@@ -91,6 +91,10 @@ class CurllibConan(ConanFile):
     _autotools = None
     _autotools_vars = None
 
+    @property
+    def _is_mingw(self):
+        return self.settings.os == "Windows" and self.settings.compiler == "gcc"
+
     def _get_linux_arm_host(self):
         arch = None
         if self.settings.os == "Linux":
