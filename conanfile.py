@@ -88,85 +88,161 @@ class CurllibConan(ConanFile):
     default_options ['with_telnet'] = True
 
     generators = "cmake", "txt"
+    _autotools = None
+    _autotools_vars = None
 
-    @property
-    def _targets(self):
-        return {
-            "iOS-x86-*": "i386-apple-ios",
-            "iOS-x86_64-*": "x86_64-apple-ios"
-        }
+    def _get_linux_arm_host(self):
+        arch = None
+        if self.settings.os == "Linux":
+            arch = "arm-linux-gnu"
+            # aarch64 could be added by user
+            if "aarch64" in self.settings.arch:
+                arch = "aarch64-linux-gnu"
+            elif "arm" in self.settings.arch and "hf" in self.settings.arch:
+                arch = "arm-linux-gnueabihf"
+            elif "arm" in self.settings.arch and self._arm_version(str(self.settings.arch)) > 4:
+                arch = "arm-linux-gnueabi"
+        return arch
 
-    def config_options(self):
-        args = ["--prefix=${PWD}"]
-        if tools.cross_building(self.settings):
-            if self.settings.os == "iOS":
-                self.options.with_threaded_resolver = True
-                args.append("--disable-verbose")
-        args.append("--enable-ares") if self.options.with_ares else args.append("--disable-ares")
-        args.append("--enable-http") if self.options.with_http else args.append("--disable-http")
-        args.append("--enable-ftp") if self.options.with_ftp else args.append("--disable-ftp")
-        args.append("--enable-file") if self.options.with_file else args.append("--disable-file")
-        args.append("--enable-ldap") if self.options.with_ldap else args.append("--disable-ldap")
-        args.append("--enable-ldaps") if self.options.with_ldaps else args.append("--disable-ldaps")
-        args.append("--enable-rtsp") if self.options.with_rtsp else args.append("--disable-rtsp")
-        args.append("--enable-proxy") if self.options.with_proxy else args.append("--disable-proxy")
-        args.append("--enable-dict") if self.options.with_dict else args.append("--disable-dict")
-        args.append("--enable-telnet") if self.options.with_telnet else args.append("--disable-telnet")
-        args.append("--enable-tftp") if self.options.with_tftp else args.append("--disable-tftp")
-        args.append("--enable-pop3") if self.options.with_pop3 else args.append("--disable-pop3")
-        args.append("--enable-imap") if self.options.with_imap else args.append("--disable-imap")
-        args.append("--enable-smb") if self.options.with_smb else args.append("--disable-smb")
-        args.append("--enable-smtp") if self.options.with_smtp else args.append("--disable-smtp")
-        args.append("--enable-gopher") if self.options.with_gopher else args.append("--disable-gopher")
-        args.append("--enable-ipv6") if self.options.with_ipv6 else args.append("--disable-ipv6")
-        args.append("--enable-openssl-auto-load-config") if self.options.with_openssl_auto_load_config else args.append("--disable-openssl-auto-load-config")
-        args.append("--enable-versioned-symbols") if self.options.with_versioned_symbols else args.append("--disable-versioned-symbols")
-        args.append("--enable-threaded-resolver") if self.options.with_threaded_resolver else args.append("--disable-threaded-resolver")
-        args.append("--enable-pthread") if self.options.with_pthread else args.append("--disable-pthread")
-        args.append("--enable-cookies") if self.options.with_cookies else args.append("--disable-cookies")
-        args.append("--enable-crypto_auth") if self.options.with_crypto_auth else args.append("--disable-crypto-auth")
-        # args.append("--with-zlib") if self.options.with_zlib else args.append("--without-zlib")
-        args.append("--with-brotli") if self.options.with_brotli else args.append("--without-brotli")
-        args.append("--with-winssl") if self.options.with_winssl else args.append("--without-winssl")
-        args.append("--with-darwinssl") if self.options.with_darwinssl else args.append("--without-darwinssl")
-        # args.append("--with-ssl") if self.options.with_ssl else args.append("--without-ssl")
-        args.append("--with-gnutls") if self.options.with_gnutls else args.append("--without-gnutls")
-        args.append("--with-polarssl") if self.options.with_polarssl else args.append("--without-polarssl")
-        args.append("--with-mbedtls") if self.options.with_mbedtls else args.append("--without-mbedtls")
-        args.append("--with-cyassl") if self.options.with_cyassl else args.append("--without-cyassl")
-        args.append("--with-wolfssl") if self.options.with_wolfssl else args.append("--without-wolfssl")
-        args.append("--with-ca-bundle") if self.options.with_ca_bundle else args.append("--without-ca-bundle")
-        args.append("--with-libmetalink") if self.options.with_libmetalink else args.append("--without-libmetalink")
-        args.append("--with-libssh2") if self.options.with_libssh2 else args.append("--without-libssh2")
-        args.append("--with-libssh") if self.options.with_libssh else args.append("--without-libssh")
-        args.append("--with-rtmp") if self.options.with_rtmp else args.append("--without-rtmp")
-        args.append("--with-winidn") if self.options.with_winidn else args.append("--without-winidn")
-        args.append("--with-libidn2") if self.options.with_libidn2 else args.append("--without-libidn2")
-        args.append("--with-nghttp2") if self.options.with_nghttp2 else args.append("--without-nghttp2")
-        args.append("--enable-manual") if self.options.with_manual else args.append("--disable-manual")
-        return args
+    def _arm_version(self, arch):
+        version = None
+        match = re.match(r"arm\w*(\d)", arch)
+        if match:
+            version = int(match.group(1))
+        return version
 
-    def build(self):
-        # print(self.deps_cpp_info["openssl"].rootpath)
-        # print(self.deps_cpp_info["openssl"].include_paths)
-        # print(self.deps_cpp_info["openssl"].lib_paths)
-        # print(self.deps_cpp_info["openssl"].bin_paths)
-        # print(self.deps_cpp_info["openssl"].libs)
-        # print(self.deps_cpp_info["openssl"].defines)
-        # print(self.deps_cpp_info["openssl"].cflags)
-        # print(self.deps_cpp_info["openssl"].cppflags)
-        # print(self.deps_cpp_info["openssl"].sharedlinkflags)
-        # print(self.deps_cpp_info["openssl"].exelinkflags)
-        autotools = AutoToolsBuildEnvironment(self)
-        self.run("cd .. && autoreconf -fsi")
-        args = self.config_options()
+    def _get_configure_command_args(self):
+        enable_disable = lambda v: "enable" if v else "disable"
+        with_without = lambda v: "with" if v else "without"
+        params = [
+            "--{}-ares".format(enable_disable(self.options.with_ares)),
+            "--{}-http".format(enable_disable(self.options.with_http)),
+            "--{}-ftp".format(enable_disable(self.options.with_ftp)),
+            "--{}-file".format(enable_disable(self.options.with_file)),
+            "--{}-ldap".format(enable_disable(self.options.with_ldap)),
+            "--{}-ldaps".format(enable_disable(self.options.with_ldaps)),
+            "--{}-rtsp".format(enable_disable(self.options.with_rtsp)),
+            "--{}-proxy".format(enable_disable(self.options.with_proxy)),
+            "--{}-dict".format(enable_disable(self.options.with_dict)),
+            "--{}-telnet".format(enable_disable(self.options.with_telnet)),
+            "--{}-tftp".format(enable_disable(self.options.with_tftp)),
+            "--{}-pop3".format(enable_disable(self.options.with_pop3)),
+            "--{}-imap".format(enable_disable(self.options.with_imap)),
+            "--{}-smb".format(enable_disable(self.options.with_smb)),
+            "--{}-smtp".format(enable_disable(self.options.with_smtp)),
+            "--{}-gopher".format(enable_disable(self.options.with_gopher)),
+            "--{}-ipv6".format(enable_disable(self.options.with_ipv6)),
+            "--{}-openssl-auto-load-config".format(enable_disable(self.options.with_openssl_auto_load_config)),
+            "--{}-versioned-symbols".format(enable_disable(self.options.with_versioned_symbols)),
+            "--{}-threaded-resolver".format(enable_disable(self.options.with_threaded_resolver)),
+            "--{}-pthread".format(enable_disable(self.options.with_pthread)),
+            "--{}-cookies".format(enable_disable(self.options.with_cookies)),
+            "--{}-crypto_auth".format(enable_disable(self.options.with_crypto_auth)),
+            # "--{}-zlib".format(with_without(self.options.with_zlib)),
+            "--{}-brotli".format(with_without(self.options.with_brotli)),
+            "--{}-winssl".format(with_without(self.options.with_winssl)),
+            "--{}-darwinssl".format(with_without(self.options.with_darwinssl)),
+            # "--{}-ssl".format(with_without(self.options.with_ssl)),
+            "--{}-gnutls".format(with_without(self.options.with_gnutls)),
+            "--{}-polarssl".format(with_without(self.options.with_polarssl)),
+            "--{}-mbedtls".format(with_without(self.options.with_mbedtls)),
+            "--{}-cyassl".format(with_without(self.options.with_cyassl)),
+            "--{}-wolfssl".format(with_without(self.options.with_wolfssl)),
+            "--{}-ca-bundle".format(with_without(self.options.with_ca_bundle)),
+            "--{}-libmetalink".format(with_without(self.options.with_libmetalink)),
+            "--{}-libssh2".format(with_without(self.options.with_libssh2)),
+            "--{}-libssh".format(with_without(self.options.with_libssh)),
+            "--{}-rtmp".format(with_without(self.options.with_rtmp)),
+            "--{}-winidn".format(with_without(self.options.with_winidn)),
+            "--{}-libidn2".format(with_without(self.options.with_libidn2)),
+            "--{}-nghttp2".format(with_without(self.options.with_nghttp2)),
+            "--{}-manual".format(enable_disable(self.options.with_manual)),
+        ]
+
+        # Adds custom OpenSSL build as dependency
         if self.options.with_openssl and (not self.options.with_darwinssl and not self.options.with_winssl ):
             self.requires.add("OpenSSL/1.0.2r@jenkins/master", private= False)
-            args.append("--with-ssl={!s}".format(self.deps_cpp_info["OpenSSL"].rootpath))
-        args.append("--with-zlib={!s}".format(self.deps_cpp_info["zlib"].rootpath)) if self.options.with_zlib else args.append("--without-zlib")
-        autotools.configure(configure_dir= "..",args= args, use_default_install_dirs=True)
-        autotools.make()
-        autotools.install()
+            params.append("--with-ssl={!s}".format(self.deps_cpp_info["OpenSSL"].rootpath))
+        params.append("--with-zlib={!s}".format(self.deps_cpp_info["zlib"].rootpath)) if self.options.with_zlib else args.append("--without-zlib")
+
+        # Cross building flags
+        if tools.cross_building(self.settings):
+            if self.settings.os == "Linux" and "arm" in self.settings.arch:
+                params.append("--host=%s" % self._get_linux_arm_host())
+            elif self.settings.os == "iOS":
+                params.append("--enable-threaded-resolver")
+                params.append("--disable-verbose")
+            elif self.settings.os == "Android":
+                pass # this just works, conan is great!
+
+        return params
+
+    def _configure_autotools_vars(self):
+        autotools_vars = self._autotools.vars
+        # tweaks for mingw
+        if self._is_mingw:
+            autotools_vars["RCFLAGS"] = "-O COFF"
+            if self.settings.arch == "x86":
+                autotools_vars["RCFLAGS"] += " --target=pe-i386"
+            else:
+                autotools_vars["RCFLAGS"] += " --target=pe-x86-64"
+        return autotools_vars
+
+    def _configure_autotools(self):
+        if self._autotools and self._autotools_vars:
+            return self._autotools, self._autotools_vars
+
+        self._autotools = AutoToolsBuildEnvironment(self, win_bash=tools.os_info.is_windows)
+
+        if self.settings.os != "Windows":
+            self._autotools.fpic = self.options.get_safe("fPIC", True)
+
+        self._autotools_vars = self._configure_autotools_vars()
+
+        # tweaks for mingw
+        if self._is_mingw:
+            self._autotools.defines.append("_AMD64_")
+
+        if tools.cross_building(self) and tools.is_apple_os(self.settings.os):
+            self._autotools.defines.extend(['HAVE_SOCKET', 'HAVE_FCNTL_O_NONBLOCK'])
+
+        configure_args = self._get_configure_command_args()
+
+        if self.settings.os == "iOS" and self.settings.arch == "x86_64":
+            # please do not autodetect --build for the iOS simulator, thanks!
+            self._autotools.configure(vars=self._autotools_vars, args=configure_args, build=False)
+        else:
+            self._autotools.configure(vars=self._autotools_vars, args=configure_args)
+
+        return self._autotools, self._autotools_vars
+
+    def build(self):
+        with tools.chdir("./.."):
+            # autoreconf
+            self.run("{} -fiv".format(tools.get_env("AUTORECONF") or "autoreconf"), win_bash=tools.os_info.is_windows, run_environment=True)
+
+            # fix generated autotools files to have relocatable binaries
+            if tools.is_apple_os(self.settings.os):
+                tools.replace_in_file("configure", "-install_name \\$rpath/", "-install_name @rpath/")
+
+            self.run("chmod +x configure")
+
+            # run configure with *LD_LIBRARY_PATH env vars it allows to pick up shared openssl
+            with tools.run_environment(self):
+                autotools, autotools_vars = self._configure_autotools()
+                autotools.make(vars=autotools_vars)
+                autotools.install()
+
+        # autotools = AutoToolsBuildEnvironment(self)
+        # self.run("cd .. && autoreconf -fsi")
+        # args = self.config_options()
+        # if self.options.with_openssl and (not self.options.with_darwinssl and not self.options.with_winssl ):
+        #     self.requires.add("OpenSSL/1.0.2r@jenkins/master", private= False)
+        #     args.append("--with-ssl={!s}".format(self.deps_cpp_info["OpenSSL"].rootpath))
+        # args.append("--with-zlib={!s}".format(self.deps_cpp_info["zlib"].rootpath)) if self.options.with_zlib else args.append("--without-zlib")
+        # autotools.configure(configure_dir= "..",args= args, use_default_install_dirs=True)
+        # autotools.make()
+        # autotools.install()
 
     def package(self):
         self.copy("*.h", dst= "include", src= "include/curl/include")
